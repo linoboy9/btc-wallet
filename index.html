@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTC Wallet Generator</title>
+<style>
+body{background:#0a0a0a;color:#fff;font-family:sans-serif;display:flex;justify-content:center;padding:20px}
+.card{background:#18181b;padding:25px;border-radius:16px;max-width:400px;width:100%;border:1px solid #27272a}
+button{width:100%;padding:14px;background:#f7931a;color:#000;border:0;border-radius:10px;font-weight:bold;font-size:16px;cursor:pointer}
+.box{background:#09090b;padding:12px;border-radius:8px;margin-top:12px;word-break:break-all;font-size:13px;border:1px solid #27272a}
+small{color:#a1a1aa}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>BTC Wallet</h2>
+<p><small>Todo se genera en tu dispositivo. No guardamos nada.</small></p>
+<button id="gen">Generar Nueva Billetera</button>
+<div id="result" style="display:none">
+<div class="box"><small>DIRECCIÓN bc1q...</small><div id="addr"></div></div>
+<div class="box"><small>12 PALABRAS - GUARDA ESTO</small><div id="mnemonic"></div></div>
+<div class="box"><small>LLAVE PRIVADA WIF</small><div id="wif"></div></div>
+</div>
+</div>
+
+<script type="module">
+import * as bip39 from 'https://esm.sh/bip39@3.1.0';
+import * as bitcoin from 'https://esm.sh/bitcoinjs-lib@6.1.5';
+import { ECPairFactory } from 'https://esm.sh/ecpair@2.1.0';
+import * as ecc from 'https://esm.sh/tiny-secp256k1@2.2.3';
+const ECPair = ECPairFactory(ecc);
+
+document.getElementById('gen').onclick = async () => {
+  const mnemonic = bip39.generateMnemonic();
+  const seed = await bip39.mnemonicToSeed(mnemonic);
+  const root = bitcoin.BIP32Factory(ecc).fromSeed(seed);
+  const child = root.derivePath(`m/84'/0'/0'/0/0`);
+  const { address } = bitcoin.payments.p2wpkh({ pubkey: child.publicKey });
+  
+  document.getElementById('addr').innerText = address;
+  document.getElementById('mnemonic').innerText = mnemonic;
+  document.getElementById('wif').innerText = child.toWIF();
+  document.getElementById('result').style.display = 'block';
+}
+</script>
+</body>
+</html>
