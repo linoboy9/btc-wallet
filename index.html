@@ -2,35 +2,55 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BTC Fria</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bip39/3.0.4/bip39.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bitcoinjs-lib@5.2.0/dist/bitcoinjs-lib.min.js"></script>
-<style>body{background:#0f0f0f;color:#fff;font-family:Arial;text-align:center;padding:20px}.card{background:#1c1c1c;padding:20px;border-radius:16px;max-width:520px;margin:auto}button{padding:16px;width:100%;background:#f7931a;border:0;border-radius:12px;font-weight:800;font-size:20px} .w{display:inline-block;background:#2c2c2c;margin:5px;padding:8px 12px;border-radius:8px;width:90px} .a{word-break:break-all;background:#000;padding:12px;border-radius:10px;margin-top:12px}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi Billetera Fría</title>
+<style>
+body{background:#0a0a0a;color:#fff;font-family:system-ui;padding:16px;text-align:center}
+.box{background:#181818;border-radius:20px;padding:22px;max-width:520px;margin:20px auto}
+button{width:100%;padding:18px;background:#f7931a;color:#000;border:0;border-radius:14px;font-size:22px;font-weight:900;cursor:pointer}
+.w{background:#262626;display:inline-block;margin:5px;padding:10px;border-radius:10px;width:92px}
+.addr{background:#000;padding:14px;border-radius:12px;word-break:break-all;margin-top:14px;font-size:14px}
+small{color:#888}
+</style>
 </head>
 <body>
-<div class="card">
-<h2>Generador Billetera Fría</h2>
-<button onclick="gen()">GENERAR AHORA</button>
-<div id="r" style="display:none;margin-top:20px">
+<div class="box">
+<h2>🔐 Mi Billetera Fría BTC</h2>
+<p><small>Generado en tu navegador, no se envía a nadie</small></p>
+<button id="btn">GENERAR BILLETERA</button>
+<div id="res" style="display:none;margin-top:18px">
 <div id="words"></div>
-<div id="addr" class="a"></div>
-<div id="wif" class="a" style="color:#888;font-size:11px"></div>
-<p style="color:#f7931a;font-size:13px;margin-top:15px">Anota en papel. Con internet apagado = 100% fría.</p>
+<div id="addr" class="addr"></div>
+<div style="margin-top:12px;color:#f7931a;font-size:13px">⚠️ Anota las 12 palabras en papel. Con modo avión = 100% fría.</div>
 </div>
+<div id="log" style="margin-top:10px;color:#666;font-size:12px"></div>
 </div>
-<script>
-function gen(){
+
+<script type="module">
+import * as bip39 from 'https://esm.sh/bip39@3.1.0';
+import * as bitcoin from 'https://esm.sh/bitcoinjs-lib@6.1.5?bundle';
+import { BIP32Factory } from 'https://esm.sh/bip32@4.0.0?bundle';
+import * as ecc from 'https://esm.sh/tiny-secp256k1@2.2.3?bundle';
+
+document.getElementById('log').innerText = 'Librerías cargadas ✓ Lista para generar';
+
+const bip32 = BIP32Factory(ecc);
+
+document.getElementById('btn').onclick = async () => {
  try{
-  if(typeof bip39 === 'undefined' || typeof bitcoin === 'undefined'){
-    alert('Aún cargando... espera 5 segundos y vuelve a dar al botón. Necesitas internet solo esta vez.');
-    return;
-  }
-  const mn = bip39.generateMnemonic();
-  const seed = bip39.mnemonicToSeedSync(mn);
-  const root = bitcoin.bip32.fromSeed(seed);
+  const mnemonic = bip39.generateMnemonic();
+  const seed = await bip39.mnemonicToSeed(mnemonic);
+  const root = bip32.fromSeed(seed);
   const child = root.derivePath("m/84'/0'/0'/0/0");
   const { address } = bitcoin.payments.p2wpkh({ pubkey: child.publicKey });
-  document.getElementById('words').innerHTML = mn.split(' ').map((w,i)=>'<span class=w>'+(i+1)+'. '+w+'</span>').join('');
-  document.getElementById('addr').innerText = 'Dirección: ' + address;
-  document.getElementById('wif').innerText = 'Clave privada WIF: ' + child.toWIF
+  document.getElementById('words').innerHTML = mnemonic.split(' ').map((w,i)=>`<span class=w>${i+1}. ${w}</span>`).join('');
+  document.getElementById('addr').innerText = address;
+  document.getElementById('res').style.display='block';
+ }catch(e){
+  document.getElementById('log').innerText = 'Error: '+e.message;
+  alert(e.message);
+ }
+};
+</script>
+</body>
+</html>
