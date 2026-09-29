@@ -1,56 +1,71 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mi Billetera Fría</title>
-<style>
-body{background:#0a0a0a;color:#fff;font-family:system-ui;padding:16px;text-align:center}
-.box{background:#181818;border-radius:20px;padding:22px;max-width:520px;margin:20px auto}
-button{width:100%;padding:18px;background:#f7931a;color:#000;border:0;border-radius:14px;font-size:22px;font-weight:900;cursor:pointer}
-.w{background:#262626;display:inline-block;margin:5px;padding:10px;border-radius:10px;width:92px}
-.addr{background:#000;padding:14px;border-radius:12px;word-break:break-all;margin-top:14px;font-size:14px}
-small{color:#888}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Wallet de Bitcoin</title>
+    <!-- Tailwind CSS para un diseño limpio y moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- BitcoinJS y ECPair para la criptografía de Bitcoin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bitcoinjs-lib/6.1.5/bitcoinjs-lib.js"></script>
 </head>
-<body>
-<div class="box">
-<h2>🔐 Mi Billetera Fría BTC</h2>
-<p><small>Generado en tu navegador, no se envía a nadie</small></p>
-<button id="btn">GENERAR BILLETERA</button>
-<div id="res" style="display:none;margin-top:18px">
-<div id="words"></div>
-<div id="addr" class="addr"></div>
-<div style="margin-top:12px;color:#f7931a;font-size:13px">⚠️ Anota las 12 palabras en papel. Con modo avión = 100% fría.</div>
-</div>
-<div id="log" style="margin-top:10px;color:#666;font-size:12px"></div>
-</div>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col items-center justify-center p-4">
 
-<script type="module">
-import * as bip39 from 'https://esm.sh/bip39@3.1.0';
-import * as bitcoin from 'https://esm.sh/bitcoinjs-lib@6.1.5?bundle';
-import { BIP32Factory } from 'https://esm.sh/bip32@4.0.0?bundle';
-import * as ecc from 'https://esm.sh/tiny-secp256k1@2.2.3?bundle';
+    <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
+        <h1 class="text-2xl font-bold text-center mb-6 text-orange-400">Bitcoin Wallet Generator</h1>
+        
+        <div class="space-y-4">
+            <button onclick="generateWallet()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                Generar Nueva Wallet
+            </button>
 
-document.getElementById('log').innerText = 'Librerías cargadas ✓ Lista para generar';
+            <div class="space-y-2 pt-4 border-t border-gray-700">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase">Clave Privada (WIF):</label>
+                    <input type="text" id="privateKey" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-300 select-all font-mono">
+                </div>
 
-const bip32 = BIP32Factory(ecc);
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase">Dirección Bitcoin (SegWit / Native SegWit):</label>
+                    <input type="text" id="address" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-orange-300 select-all font-mono">
+                </div>
+            </div>
+        </div>
 
-document.getElementById('btn').onclick = async () => {
- try{
-  const mnemonic = bip39.generateMnemonic();
-  const seed = await bip39.mnemonicToSeed(mnemonic);
-  const root = bip32.fromSeed(seed);
-  const child = root.derivePath("m/84'/0'/0'/0/0");
-  const { address } = bitcoin.payments.p2wpkh({ pubkey: child.publicKey });
-  document.getElementById('words').innerHTML = mnemonic.split(' ').map((w,i)=>`<span class=w>${i+1}. ${w}</span>`).join('');
-  document.getElementById('addr').innerText = address;
-  document.getElementById('res').style.display='block';
- }catch(e){
-  document.getElementById('log').innerText = 'Error: '+e.message;
-  alert(e.message);
- }
-};
-</script>
+        <div class="mt-6 p-4 bg-red-900/30 border border-red-700/50 rounded-lg text-xs text-red-300">
+            <strong>Advertencia de seguridad:</strong> Este script es para fines educativos y de pruebas. Nunca utilices claves generadas en herramientas web en línea para almacenar fondos reales importantes.
+        </div>
+    </div>
+
+    <script>
+        function generateWallet() {
+            try {
+                // Usamos la red principal de Bitcoin (bitcoin.networks.bitcoin)
+                const network = bitcoin.networks.bitcoin;
+                
+                // Generar un par de claves aleatorias utilizando criptografía nativa del navegador (window.crypto)
+                const keyPair = ECPair.ECPairFactory(ecc).makeRandom();
+                
+                // Obtener la clave privada en formato WIF (Wallet Import Format)
+                const privateKeyWIF = keyPair.toWIF();
+                
+                // Generar una dirección nativa SegWit (P2WPKH - empieza por bc1)
+                const { address } = bitcoin.payments.p2wpkh({
+                    pubkey: keyPair.publicKey,
+                    network: network
+                });
+
+                // Mostrar los resultados en la interfaz
+                document.getElementById('privateKey').value = privateKeyWIF;
+                document.getElementById('address').value = address;
+            } catch (error) {
+                console.error("Error al generar la wallet:", error);
+                alert("Hubo un error al generar la wallet. Revisa la consola.");
+            }
+        }
+    </script>
+    
+    <!-- Dependencia auxiliar para curvas elípticas (tiny-secp256k1 requerida por bitcoinjs-lib v6) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tiny-secp256k1/2.2.3/secp256k1.min.js"></script>
 </body>
 </html>
