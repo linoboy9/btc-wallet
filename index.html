@@ -3,69 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Wallet de Bitcoin</title>
-    <!-- Tailwind CSS para un diseño limpio y moderno -->
+    <title>Generador de Wallet de Bitcoin con Seed Phrase</title>
+    <!-- Tailwind CSS para el diseño -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- BitcoinJS y ECPair para la criptografía de Bitcoin -->
+    <!-- Librerías de criptografía y BIP39 para Bitcoin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bip39/3.1.0/index.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bitcoinjs-lib/6.1.5/bitcoinjs-lib.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tiny-secp256k1/2.2.3/secp256k1.min.js"></script>
+    <!-- BIP32 para carteras jerárquicas deterministas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bip32/4.2.0/index.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col items-center justify-center p-4">
 
     <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
-        <h1 class="text-2xl font-bold text-center mb-6 text-orange-400">Bitcoin Wallet Generator</h1>
+        <h1 class="text-2xl font-bold text-center mb-6 text-orange-400">Bitcoin HD Wallet Generator</h1>
         
         <div class="space-y-4">
-            <button onclick="generateWallet()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
-                Generar Nueva Wallet
+            <button onclick="generateHDWallet()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                Generar Nueva Semilla y Wallet
             </button>
 
-            <div class="space-y-2 pt-4 border-t border-gray-700">
+            <div class="space-y-3 pt-4 border-t border-gray-700">
                 <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase">Clave Privada (WIF):</label>
-                    <input type="text" id="privateKey" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-300 select-all font-mono">
+                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Frase Semilla (12 Palabras - Respaldar):</label>
+                    <textarea id="seedPhrase" rows="2" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-yellow-200 select-all font-mono resize-none"></textarea>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase">Dirección Bitcoin (SegWit / Native SegWit):</label>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Dirección Bitcoin (Native SegWit - bc1):</label>
                     <input type="text" id="address" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-orange-300 select-all font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Clave Privada de la Dirección (WIF):</label>
+                    <input type="text" id="privateKey" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-400 select-all font-mono">
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 p-4 bg-red-900/30 border border-red-700/50 rounded-lg text-xs text-red-300">
-            <strong>Advertencia de seguridad:</strong> Este script es para fines educativos y de pruebas. Nunca utilices claves generadas en herramientas web en línea para almacenar fondos reales importantes.
+        <div class="mt-6 p-4 bg-yellow-900/30 border border-yellow-700/50 rounded-lg text-xs text-yellow-300">
+            <strong>Nota de seguridad:</strong> Anota las 12 palabras en un papel físico. Si pierdes las palabras, perderás el acceso a los fondos de esta dirección para siempre.
         </div>
     </div>
 
     <script>
-        function generateWallet() {
+        // Inicializar BIP32 con la librería de curvas elípticas
+        const BIP32Factory = bip32.BIP32Factory;
+        const rootBIP32 = BIP32Factory(ecc);
+
+        function generateHDWallet() {
             try {
-                // Usamos la red principal de Bitcoin (bitcoin.networks.bitcoin)
-                const network = bitcoin.networks.bitcoin;
+                // 1. Generar una frase semilla aleatoria de 12 palabras (128 bits de entropía)
+                const mnemonic = bip39.generateMnemonic(128);
                 
-                // Generar un par de claves aleatorias utilizando criptografía nativa del navegador (window.crypto)
-                const keyPair = ECPair.ECPairFactory(ecc).makeRandom();
-                
-                // Obtener la clave privada en formato WIF (Wallet Import Format)
-                const privateKeyWIF = keyPair.toWIF();
-                
-                // Generar una dirección nativa SegWit (P2WPKH - empieza por bc1)
+                // 2. Convertir la semilla mnemotécnica en un buffer de semilla maestra
+                const seed = bip39.mnemonicToSeedSync(mnemonic);
+
+                // 3. Crear el nodo maestro BIP32 para la red principal de Bitcoin
+                const root = rootBIP32.fromSeed(seed, bitcoin.networks.bitcoin);
+
+                // 4. Derivar usando el estándar BIP84 para Native SegWit (ruta: m/84'/0'/0'/0/0)
+                const path = "m/84'/0'/0'/0/0";
+                const child = root.derivePath(path);
+
+                // 5. Obtener la clave privada en formato WIF
+                const privateKeyWIF = child.toWIF();
+
+                // 6. Generar la dirección P2WPKH (Native SegWit - empieza por bc1)
                 const { address } = bitcoin.payments.p2wpkh({
-                    pubkey: keyPair.publicKey,
-                    network: network
+                    pubkey: child.publicKey,
+                    network: bitcoin.networks.bitcoin
                 });
 
-                // Mostrar los resultados en la interfaz
-                document.getElementById('privateKey').value = privateKeyWIF;
+                // Mostrar los datos en la interfaz
+                document.getElementById('seedPhrase').value = mnemonic;
                 document.getElementById('address').value = address;
+                document.getElementById('privateKey').value = privateKeyWIF;
+
             } catch (error) {
-                console.error("Error al generar la wallet:", error);
+                console.error("Error al generar la HD wallet:", error);
                 alert("Hubo un error al generar la wallet. Revisa la consola.");
             }
         }
     </script>
-    
-    <!-- Dependencia auxiliar para curvas elípticas (tiny-secp256k1 requerida por bitcoinjs-lib v6) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tiny-secp256k1/2.2.3/secp256k1.min.js"></script>
 </body>
 </html>
