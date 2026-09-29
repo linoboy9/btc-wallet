@@ -2,38 +2,35 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Billetera Fría Bitcoin</title>
-<script src="https://unpkg.com/bip39@3.1.0/dist/index.js"></script>
-<script src="https://unpkg.com/bitcoinjs-lib@6.1.0/dist/bitcoinjs-lib.js"></script>
-<style>
-body{font-family:system-ui;background:#111;color:#fff;text-align:center;padding:20px}
-.box{background:#1e1e1e;padding:20px;border-radius:15px;max-width:500px;margin:auto}
-button{width:100%;padding:15px;background:#f7931a;color:#000;font-weight:bold;border:0;border-radius:10px;font-size:18px;margin-top:10px}
-.word{background:#2a2a2a;padding:10px;margin:4px;display:inline-block;border-radius:8px;width:90px}
-.addr{word-break:break-all;background:#000;padding:12px;border-radius:10px;margin-top:10px;font-size:14px}
-.warn{color:#f7931a;font-size:13px;margin-top:15px}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTC Fria</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bip39/3.0.4/bip39.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bitcoinjs-lib@5.2.0/dist/bitcoinjs-lib.min.js"></script>
+<style>body{background:#0f0f0f;color:#fff;font-family:Arial;text-align:center;padding:20px}.card{background:#1c1c1c;padding:20px;border-radius:16px;max-width:520px;margin:auto}button{padding:16px;width:100%;background:#f7931a;border:0;border-radius:12px;font-weight:800;font-size:20px} .w{display:inline-block;background:#2c2c2c;margin:5px;padding:8px 12px;border-radius:8px;width:90px} .a{word-break:break-all;background:#000;padding:12px;border-radius:10px;margin-top:12px}</style>
 </head>
 <body>
-<div class="box">
-<h2>🔐 Generador Frío BTC</h2>
-<p>Todo se crea en tu celular, nada se envía a internet.</p>
-<button onclick="generar()">GENERAR BILLETERA NUEVA</button>
-<div id="resultado" style="display:none">
-<h3>12 Palabras (Anótalas en orden):</h3>
-<div id="palabras"></div>
-<h3 style="margin-top:20px">Dirección BTC (bc1...):</h3>
-<div id="direccion" class="addr"></div>
-<div id="priv" class="addr" style="font-size:11px;color:#888"></div>
-<div class="warn">⚠️ Modo avión = Billetera 100% Fría. Nunca muestres las 12 palabras.</div>
+<div class="card">
+<h2>Generador Billetera Fría</h2>
+<button onclick="gen()">GENERAR AHORA</button>
+<div id="r" style="display:none;margin-top:20px">
+<div id="words"></div>
+<div id="addr" class="a"></div>
+<div id="wif" class="a" style="color:#888;font-size:11px"></div>
+<p style="color:#f7931a;font-size:13px;margin-top:15px">Anota en papel. Con internet apagado = 100% fría.</p>
 </div>
 </div>
 <script>
-async function generar(){
+function gen(){
  try{
-  const mnemonic = bip39.generateMnemonic();
-  const seed = await bip39.mnemonicToSeed(mnemonic);
-  const root = bitcoinjs.bip32.fromSeed(seed);
+  if(typeof bip39 === 'undefined' || typeof bitcoin === 'undefined'){
+    alert('Aún cargando... espera 5 segundos y vuelve a dar al botón. Necesitas internet solo esta vez.');
+    return;
+  }
+  const mn = bip39.generateMnemonic();
+  const seed = bip39.mnemonicToSeedSync(mn);
+  const root = bitcoin.bip32.fromSeed(seed);
   const child = root.derivePath("m/84'/0'/0'/0/0");
-  const { address } = bitcoinjs.payments.p2wpkh
+  const { address } = bitcoin.payments.p2wpkh({ pubkey: child.publicKey });
+  document.getElementById('words').innerHTML = mn.split(' ').map((w,i)=>'<span class=w>'+(i+1)+'. '+w+'</span>').join('');
+  document.getElementById('addr').innerText = 'Dirección: ' + address;
+  document.getElementById('wif').innerText = 'Clave privada WIF: ' + child.toWIF
