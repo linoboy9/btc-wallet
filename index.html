@@ -1,91 +1,101 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin HD Wallet (Demo)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Librerías necesarias -->
-    <script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bitcoinjs-lib@6.1.5/src/index.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitcoin HD Wallet Real</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
-        <h1 class="text-2xl font-bold text-center mb-6 text-orange-400">Bitcoin HD Wallet</h1>
-        
-        <div class="space-y-4">
-            <button onclick="generateWallet()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
-                Generar Nueva Wallet
-            </button>
+  <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
+    <h1 class="text-2xl font-bold text-center mb-2 text-orange-400">Bitcoin HD Wallet</h1>
+    <p class="text-center text-xs text-gray-400 mb-6">Generación real BIP39 + BIP84 (Native SegWit)</p>
+    
+    <button id="generateBtn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md mb-4">
+      Generar Nueva Wallet Real
+    </button>
 
-            <div class="space-y-3 pt-4 border-t border-gray-700">
-                <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Frase Semilla (12 palabras):</label>
-                    <textarea id="seedPhrase" rows="2" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-yellow-200 select-all font-mono resize-none"></textarea>
-                </div>
+    <div id="loading" class="hidden text-center text-yellow-300 mb-4 text-sm">Generando wallet... espera unos segundos</div>
+    <div id="errorBox" class="hidden p-3 mb-4 bg-red-900/50 border border-red-600 rounded text-xs text-red-200 break-all"></div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Dirección (Native SegWit - bc1):</label>
-                    <input type="text" id="address" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-orange-300 select-all font-mono">
-                </div>
+    <div class="space-y-3 pt-2 border-t border-gray-700">
+      <div>
+        <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Frase Semilla (12 palabras):</label>
+        <textarea id="seedPhrase" rows="2" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-yellow-200 select-all font-mono resize-none"></textarea>
+      </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Clave Privada (WIF):</label>
-                    <input type="text" id="privateKey" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-400 select-all font-mono">
-                </div>
-            </div>
-        </div>
+      <div>
+        <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Dirección (Native SegWit - bc1q):</label>
+        <input type="text" id="address" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-orange-300 select-all font-mono">
+      </div>
 
-        <div class="mt-6 p-4 bg-red-900/40 border border-red-700/50 rounded-lg text-xs text-red-200">
-            <strong>⚠️ ADVERTENCIA IMPORTANTE:</strong><br>
-            Esto es solo para aprendizaje / demostración.<br>
-            <strong>NUNCA</strong> uses una wallet generada en una página web para dinero real.<br>
-            Cualquier persona que vea esta página (o el código) podría robarte los fondos.
-        </div>
+      <div>
+        <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Clave Privada (WIF):</label>
+        <input type="text" id="privateKey" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-400 select-all font-mono">
+      </div>
     </div>
 
-    <script>
-        // Esperamos a que las librerías carguen
-        window.onload = function() {
-            console.log("Librerías cargadas");
-        };
+    <div class="mt-6 p-4 bg-red-900/40 border border-red-700/50 rounded-lg text-xs text-red-200">
+      <strong>⚠️ ADVERTENCIA:</strong><br>
+      Solo para aprendizaje. Nunca uses wallets generadas en una página web con dinero real.
+    </div>
+  </div>
 
-        async function generateWallet() {
-            try {
-                // Generar frase mnemónica de 12 palabras
-                const mnemonic = bip39.generateMnemonic(128); // 128 bits = 12 palabras
+  <script type="module">
+    import { generateMnemonic, mnemonicToSeedWebcrypto } from 'https://esm.sh/@scure/bip39@1.4.0';
+    import { wordlist } from 'https://esm.sh/@scure/bip39@1.4.0/wordlists/english.js';
+    import { HDKey } from 'https://esm.sh/@scure/bip32@1.5.0';
+    import * as btc from 'https://esm.sh/@scure/btc-signer@1.5.0';
 
-                // Convertir a seed
-                const seed = await bip39.mnemonicToSeed(mnemonic);
+    const btn = document.getElementById('generateBtn');
+    const loading = document.getElementById('loading');
+    const errorBox = document.getElementById('errorBox');
 
-                // Crear el root del HD wallet (BIP32)
-                const root = bitcoinjs.bip32.fromSeed(seed);
+    btn.addEventListener('click', async () => {
+      errorBox.classList.add('hidden');
+      errorBox.textContent = '';
+      loading.classList.remove('hidden');
+      btn.disabled = true;
 
-                // Ruta de derivación estándar para Native SegWit: m/84'/0'/0'/0/0
-                const path = "m/84'/0'/0'/0/0";
-                const child = root.derivePath(path);
+      try {
+        // 1. Generar frase de 12 palabras
+        const mnemonic = generateMnemonic(wordlist, 128);
+        
+        // 2. Derivar seed (versión WebCrypto, mejor en móvil)
+        const seed = await mnemonicToSeedWebcrypto(mnemonic);
 
-                // Generar dirección Native SegWit (bc1...)
-                const { address } = bitcoinjs.payments.p2wpkh({
-                    pubkey: child.publicKey,
-                    network: bitcoinjs.networks.bitcoin
-                });
+        // 3. Crear raíz HD
+        const root = HDKey.fromMasterSeed(seed);
 
-                // Clave privada en formato WIF
-                const privateKeyWIF = child.toWIF();
+        // 4. Derivar ruta BIP84 (Native SegWit)
+        const child = root.derive("m/84'/0'/0'/0/0");
 
-                // Mostrar resultados
-                document.getElementById("seedPhrase").value = mnemonic;
-                document.getElementById("address").value = address;
-                document.getElementById("privateKey").value = privateKeyWIF;
-
-            } catch (error) {
-                console.error("Error generando wallet:", error);
-                alert("Error al generar la wallet. Revisa la consola (F12).");
-            }
+        if (!child.privateKey) {
+          throw new Error('No se pudo obtener la clave privada del nodo hijo');
         }
-    </script>
+
+        // 5. Dirección bc1q
+        const address = btc.getAddress('wpkh', child.privateKey);
+
+        // 6. WIF
+        const wif = btc.WIF().encode(child.privateKey);
+
+        // Mostrar
+        document.getElementById('seedPhrase').value = mnemonic;
+        document.getElementById('address').value = address;
+        document.getElementById('privateKey').value = wif;
+
+      } catch (err) {
+        console.error(err);
+        errorBox.textContent = 'Error: ' + (err.message || err.toString());
+        errorBox.classList.remove('hidden');
+        alert('Error: ' + (err.message || err.toString()));
+      } finally {
+        loading.classList.add('hidden');
+        btn.disabled = false;
+      }
+    });
+  </script>
 </body>
 </html>
