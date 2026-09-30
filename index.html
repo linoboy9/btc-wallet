@@ -10,14 +10,15 @@
 
   <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
     <h1 class="text-2xl font-bold text-center mb-2 text-orange-400">Bitcoin HD Wallet</h1>
-    <p class="text-center text-xs text-gray-400 mb-6">Generación real BIP39 + BIP84 (Native SegWit)</p>
+    <p class="text-center text-xs text-gray-400 mb-4">Generación real BIP39 + BIP84</p>
     
-    <button id="generateBtn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md mb-4">
+    <div id="status" class="text-center text-sm text-yellow-300 mb-3">Listo para generar</div>
+
+    <button id="generateBtn" class="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md mb-4">
       Generar Nueva Wallet Real
     </button>
 
-    <div id="loading" class="hidden text-center text-yellow-300 mb-4 text-sm">Generando wallet... espera unos segundos</div>
-    <div id="errorBox" class="hidden p-3 mb-4 bg-red-900/50 border border-red-600 rounded text-xs text-red-200 break-all"></div>
+    <div id="errorBox" class="hidden p-3 mb-4 bg-red-900/60 border border-red-600 rounded text-xs text-red-200 break-all"></div>
 
     <div class="space-y-3 pt-2 border-t border-gray-700">
       <div>
@@ -26,7 +27,7 @@
       </div>
 
       <div>
-        <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Dirección (Native SegWit - bc1q):</label>
+        <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Dirección (bc1q):</label>
         <input type="text" id="address" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-orange-300 select-all font-mono">
       </div>
 
@@ -38,61 +39,67 @@
 
     <div class="mt-6 p-4 bg-red-900/40 border border-red-700/50 rounded-lg text-xs text-red-200">
       <strong>⚠️ ADVERTENCIA:</strong><br>
-      Solo para aprendizaje. Nunca uses wallets generadas en una página web con dinero real.
+      Solo para aprendizaje. Nunca uses una wallet generada en una página web con dinero real.
     </div>
   </div>
 
-  <script type="module">
-    import { generateMnemonic, mnemonicToSeedWebcrypto } from 'https://esm.sh/@scure/bip39@1.4.0';
-    import { wordlist } from 'https://esm.sh/@scure/bip39@1.4.0/wordlists/english.js';
-    import { HDKey } from 'https://esm.sh/@scure/bip32@1.5.0';
-    import * as btc from 'https://esm.sh/@scure/btc-signer@1.5.0';
-
+  <script>
     const btn = document.getElementById('generateBtn');
-    const loading = document.getElementById('loading');
+    const status = document.getElementById('status');
     const errorBox = document.getElementById('errorBox');
 
     btn.addEventListener('click', async () => {
       errorBox.classList.add('hidden');
       errorBox.textContent = '';
-      loading.classList.remove('hidden');
       btn.disabled = true;
+      status.textContent = 'Cargando librerías...';
 
       try {
-        // 1. Generar frase de 12 palabras
-        const mnemonic = generateMnemonic(wordlist, 128);
-        
-        // 2. Derivar seed (versión WebCrypto, mejor en móvil)
-        const seed = await mnemonicToSeedWebcrypto(mnemonic);
+        // Cargar librerías dinámicamente (más compatible con móvil)
+        const bip39 = await import('https://esm.sh/@scure/bip39@1.4.0');
+        const { wordlist } = await import('https://esm.sh/@scure/bip39@1.4.0/wordlists/english.js');
+        const { HDKey } = await import('https://esm.sh/@scure/bip32@1.5.0');
+        const btc = await import('https://esm.sh/@scure/btc-signer@1.5.0');
 
-        // 3. Crear raíz HD
+        status.textContent = 'Generando wallet...';
+
+        // 1. Frase semilla real de 12 palabras
+        const mnemonic = bip39.generateMnemonic(wordlist, 128);
+
+        // 2. Seed
+        const seed = await bip39.mnemonicToSeedWebcrypto(mnemonic);
+
+        // 3. HD root
         const root = HDKey.fromMasterSeed(seed);
 
-        // 4. Derivar ruta BIP84 (Native SegWit)
+        // 4. Ruta Native SegWit
         const child = root.derive("m/84'/0'/0'/0/0");
 
         if (!child.privateKey) {
-          throw new Error('No se pudo obtener la clave privada del nodo hijo');
+          throw new Error('No se pudo derivar la clave privada');
         }
 
-        // 5. Dirección bc1q
+        // 5. Dirección y WIF
         const address = btc.getAddress('wpkh', child.privateKey);
-
-        // 6. WIF
         const wif = btc.WIF().encode(child.privateKey);
 
-        // Mostrar
+        // Mostrar resultados
         document.getElementById('seedPhrase').value = mnemonic;
         document.getElementById('address').value = address;
         document.getElementById('privateKey').value = wif;
 
+        status.textContent = '✅ Wallet generada correctamente';
+        status.className = 'text-center text-sm text-green-400 mb-3';
+
       } catch (err) {
         console.error(err);
-        errorBox.textContent = 'Error: ' + (err.message || err.toString());
+        const msg = err.message || err.toString();
+        status.textContent = '❌ Error';
+        status.className = 'text-center text-sm text-red-400 mb-3';
+        errorBox.textContent = 'Error: ' + msg;
         errorBox.classList.remove('hidden');
-        alert('Error: ' + (err.message || err.toString()));
+        alert('Error: ' + msg);
       } finally {
-        loading.classList.add('hidden');
         btn.disabled = false;
       }
     });
