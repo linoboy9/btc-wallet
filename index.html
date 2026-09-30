@@ -53,56 +53,28 @@
       errorBox.textContent = '';
       btn.disabled = true;
       status.textContent = 'Cargando librerías...';
+      status.className = 'text-center text-sm text-yellow-300 mb-3';
 
       try {
-        // Cargar librerías dinámicamente (más compatible con móvil)
-        const bip39 = await import('https://esm.sh/@scure/bip39@1.4.0');
-        const { wordlist } = await import('https://esm.sh/@scure/bip39@1.4.0/wordlists/english.js');
-        const { HDKey } = await import('https://esm.sh/@scure/bip32@1.5.0');
-        const btc = await import('https://esm.sh/@scure/btc-signer@1.5.0');
+        // Cargar módulos
+        const bip39Mod = await import('https://esm.sh/@scure/bip39@1.4.0');
+        const bip39 = bip39Mod.default || bip39Mod;
+
+        const wordlistMod = await import('https://esm.sh/@scure/bip39@1.4.0/wordlists/english.js');
+        const wordlist = wordlistMod.wordlist || wordlistMod.default;
+
+        const bip32Mod = await import('https://esm.sh/@scure/bip32@1.5.0');
+        const HDKey = bip32Mod.HDKey || (bip32Mod.default && bip32Mod.default.HDKey);
+
+        const btcMod = await import('https://esm.sh/@scure/btc-signer@1.5.0');
+        const btc = btcMod.default || btcMod;
 
         status.textContent = 'Generando wallet...';
 
-        // 1. Frase semilla real de 12 palabras
+        // 1. Generar frase de 12 palabras
         const mnemonic = bip39.generateMnemonic(wordlist, 128);
 
-        // 2. Seed
-        const seed = await bip39.mnemonicToSeedWebcrypto(mnemonic);
+        // 2. Derivar seed (función estándar)
+        const seed = await bip39.mnemonicToSeed(mnemonic);
 
-        // 3. HD root
-        const root = HDKey.fromMasterSeed(seed);
-
-        // 4. Ruta Native SegWit
-        const child = root.derive("m/84'/0'/0'/0/0");
-
-        if (!child.privateKey) {
-          throw new Error('No se pudo derivar la clave privada');
-        }
-
-        // 5. Dirección y WIF
-        const address = btc.getAddress('wpkh', child.privateKey);
-        const wif = btc.WIF().encode(child.privateKey);
-
-        // Mostrar resultados
-        document.getElementById('seedPhrase').value = mnemonic;
-        document.getElementById('address').value = address;
-        document.getElementById('privateKey').value = wif;
-
-        status.textContent = '✅ Wallet generada correctamente';
-        status.className = 'text-center text-sm text-green-400 mb-3';
-
-      } catch (err) {
-        console.error(err);
-        const msg = err.message || err.toString();
-        status.textContent = '❌ Error';
-        status.className = 'text-center text-sm text-red-400 mb-3';
-        errorBox.textContent = 'Error: ' + msg;
-        errorBox.classList.remove('hidden');
-        alert('Error: ' + msg);
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  </script>
-</body>
-</html>
+        // 3. Crear
