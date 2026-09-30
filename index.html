@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin HD Wallet</title>
+    <title>Bitcoin HD Wallet (Demo)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librerías necesarias -->
+    <script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bitcoinjs-lib@6.1.5/src/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col items-center justify-center p-4">
 
@@ -13,17 +17,17 @@
         
         <div class="space-y-4">
             <button onclick="generateWallet()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
-                Generar Nueva Wallet Real
+                Generar Nueva Wallet
             </button>
 
             <div class="space-y-3 pt-4 border-t border-gray-700">
                 <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Frase Semilla (12 Palabras - Respaldar):</label>
+                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Frase Semilla (12 palabras):</label>
                     <textarea id="seedPhrase" rows="2" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-yellow-200 select-all font-mono resize-none"></textarea>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Dirección Bitcoin (Simulada / SegWit):</label>
+                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Dirección (Native SegWit - bc1):</label>
                     <input type="text" id="address" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-orange-300 select-all font-mono">
                 </div>
 
@@ -34,66 +38,54 @@
             </div>
         </div>
 
-        <div class="mt-6 p-4 bg-yellow-900/30 border border-yellow-700/50 rounded-lg text-xs text-yellow-300">
-            <strong>Seguridad:</strong> Anota estas 12 palabras. Con ellas controlas tus fondos en la red de Bitcoin.
+        <div class="mt-6 p-4 bg-red-900/40 border border-red-700/50 rounded-lg text-xs text-red-200">
+            <strong>⚠️ ADVERTENCIA IMPORTANTE:</strong><br>
+            Esto es solo para aprendizaje / demostración.<br>
+            <strong>NUNCA</strong> uses una wallet generada en una página web para dinero real.<br>
+            Cualquier persona que vea esta página (o el código) podría robarte los fondos.
         </div>
     </div>
 
     <script>
-        // Lista estándar BIP39 de palabras en inglés para generar la semilla de 12 palabras de forma nativa
-        const bip39Words = [
-            "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse", "access", "accident", 
-            "account", "accuse", "achieve", "acid", "acoustic", "acquire", "across", "act", "action", "actor", "actress", "actual", 
-            "adapt", "add", "addict", "address", "adjust", "admit", "adult", "advance", "advice", "aerobic", "affair", "afford", 
-            "afraid", "again", "age", "agent", "agree", "ahead", "aim", "air", "airport", "aisle", "alarm", "album", "alcohol", 
-            "alert", "alien", "all", "alley", "allow", "almost", "alone", "alpha", "already", "also", "alter", "always", "amateur", 
-            "amazing", "among", "amount", "amused", "analyst", "anchor", "ancient", "anger", "angle", "angry", "animal", "ankle",El error `Can't find variable: bip39` pasa porque el navegador está intentando ejecutar la función antes de que los scripts externos de la librería terminen de descargarse por completo desde el CDN, o porque la URL del CDN antiguo falló en cargar en tu móvil.
+        // Esperamos a que las librerías carguen
+        window.onload = function() {
+            console.log("Librerías cargadas");
+        };
 
-Para solucionarlo de una vez por todas y **hacer que funcione de manera autónoma**, vamos a eliminar por completo la dependencia de librerías externas que fallan en los celulares. Aquí tienes el código definitivo que incluye la lógica de generación interna en un solo archivo autosuficiente.
+        async function generateWallet() {
+            try {
+                // Generar frase mnemónica de 12 palabras
+                const mnemonic = bip39.generateMnemonic(128); // 128 bits = 12 palabras
 
-Reemplaza todo el contenido de tu `index.html` en GitHub con este código:
+                // Convertir a seed
+                const seed = await bip39.mnemonicToSeed(mnemonic);
 
-```html
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin HD Wallet</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-</head>
-<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col items-center justify-center p-4">
+                // Crear el root del HD wallet (BIP32)
+                const root = bitcoinjs.bip32.fromSeed(seed);
 
-    <div class="max-w-xl w-full bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
-        <h1 class="text-2xl font-bold text-center mb-6 text-orange-400">Bitcoin HD Wallet</h1>
-        
-        <div class="space-y-4">
-            <button onclick="generateWallet()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
-                Generar Nueva Wallet Real
-            </button>
+                // Ruta de derivación estándar para Native SegWit: m/84'/0'/0'/0/0
+                const path = "m/84'/0'/0'/0/0";
+                const child = root.derivePath(path);
 
-            <div class="space-y-3 pt-4 border-t border-gray-700">
-                <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Frase Semilla (12 Palabras - Respaldar):</label>
-                    <textarea id="seedPhrase" rows="2" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-yellow-200 select-all font-mono resize-none"></textarea>
-                </div>
+                // Generar dirección Native SegWit (bc1...)
+                const { address } = bitcoinjs.payments.p2wpkh({
+                    pubkey: child.publicKey,
+                    network: bitcoinjs.networks.bitcoin
+                });
 
-                <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Dirección Bitcoin (Native SegWit - bc1):</label>
-                    <input type="text" id="address" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-orange-300 select-all font-mono">
-                </div>
+                // Clave privada en formato WIF
+                const privateKeyWIF = child.toWIF();
 
-                <div>
-                    <label class="block text-xs font-semibold text-orange-400 uppercase mb-1">Clave Privada (WIF):</label>
-                    <input type="text" id="privateKey" readonly class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-400 select-all font-mono">
-                </div>
-            </div>
-        </div>
+                // Mostrar resultados
+                document.getElementById("seedPhrase").value = mnemonic;
+                document.getElementById("address").value = address;
+                document.getElementById("privateKey").value = privateKeyWIF;
 
-        <div class="mt-6 p-4 bg-yellow-900/30 border border-yellow-700/50 rounded-lg text-xs text-yellow-300">
-            <strong>Seguridad:</strong> Anota estas 12 palabras. Con ellas controlas tus fondos reales en la red de Bitcoin.
-        </div>
-    </div>
-
-    <script>
-        // Lista oficial BIP39 de palabras en
+            } catch (error) {
+                console.error("Error generando wallet:", error);
+                alert("Error al generar la wallet. Revisa la consola (F12).");
+            }
+        }
+    </script>
+</body>
+</html>
