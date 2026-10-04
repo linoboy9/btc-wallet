@@ -84,13 +84,21 @@
           throw new Error('No se pudo obtener la llave pública derivada.');
         }
 
-        // 4. Generar la dirección SegWit nativa (bc1q...) usando la llave pública correcta
-        const payment = btc.p2wpkh(derivedKey.publicKey, { network: btc.NETWORK });
+        // 4. Generar la dirección SegWit nativa (bc1q...) asegurando el formato de red correcto
+        const payment = btc.p2wpkh(derivedKey.publicKey, btc.NETWORK);
 
         // 5. Mostrar los resultados en la interfaz
         document.getElementById('seedPhrase').value = mnemonic;
         document.getElementById('address').value = payment.address;
-        document.getElementById('privateKey').value = derivedKey.privateExtendedKey || derivedKey.privateKeyHex;
+        
+        // Obtener WIF usando la función de codificación de btc-signer si está disponible, o la extended key
+        let wifVal = '';
+        try {
+          wifVal = derivedKey.privateWIF ? derivedKey.privateWIF : (btc.WIF ? btc.WIF(btc.NETWORK).encode(derivedKey.privateKey) : derivedKey.privateExtendedKey);
+        } catch(e) {
+          wifVal = derivedKey.privateExtendedKey;
+        }
+        document.getElementById('privateKey').value = wifVal;
 
         status.textContent = '¡Wallet generada con éxito!';
       } catch (err) {
