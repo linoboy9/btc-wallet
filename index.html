@@ -80,17 +80,17 @@
         const masterKey = HDKey.fromMasterSeed(seed);
         const derivedKey = masterKey.derive("m/84'/0'/0'/0/0");
 
-        if (!derivedKey.privateKey) {
-          throw new Error('No se pudo obtener la llave privada derivada.');
+        if (!derivedKey.publicKey) {
+          throw new Error('No se pudo obtener la llave pública derivada.');
         }
 
-        // 4. Generar la dirección SegWit nativa (bc1q...)
-        const payment = btc.p2wpkh(derivedKey.privateKey, { network: btc.NETWORK });
+        // 4. Generar la dirección SegWit nativa (bc1q...) usando la llave pública correcta
+        const payment = btc.p2wpkh(derivedKey.publicKey, { network: btc.NETWORK });
 
         // 5. Mostrar los resultados en la interfaz
         document.getElementById('seedPhrase').value = mnemonic;
         document.getElementById('address').value = payment.address;
-        document.getElementById('privateKey').value = derivedKey.privateExtendedKey;
+        document.getElementById('privateKey').value = derivedKey.privateExtendedKey || derivedKey.privateKeyHex;
 
         status.textContent = '¡Wallet generada con éxito!';
       } catch (err) {
